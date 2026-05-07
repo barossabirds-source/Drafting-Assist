@@ -1,0 +1,6 @@
+{
+  "name": "markassist",
+  "version": "2.0.0",
+  "description": "SACE AI marking assistant",
+  "engines": { "node": ">=18" }
+}

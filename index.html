@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarkAssist — SACE Assessment Support</title>
+<style>
+:root {
+  --ink: #1a1a2e;
+  --ink2: #3d3d5c;
+  --ink3: #888;
+  --surface: #f3f4f8;
+  --card: #fff;
+  --border: #e2e2ec;
+  --teal: #1B6B8A;
+  --teal-l: #e6f2f7;
+  --amber: #b86b00;
+  --amber-l: #fdf3e3;
+  --green: #1a6e3c;
+  --green-l: #e8f7ef;
+  --red: #a33000;
+  --red-l: #fdeee8;
+  --r: 10px;
+  --sh: 0 2px 12px rgba(26,26,46,0.07);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; }
+
+/* ── Layout ── */
+.app { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+header h1 { font-size: 1.4rem; font-weight: 700; color: var(--teal); }
+header span { font-size: 0.85rem; color: var(--ink3); background: var(--teal-l); padding: 3px 10px; border-radius: 20px; }
+
+/* ── Progress stepper ── */
+.steps { display: flex; gap: 0; margin-bottom: 28px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); }
+.step { flex: 1; padding: 10px 6px; text-align: center; font-size: 0.78rem; font-weight: 600; background: var(--card); color: var(--ink3); cursor: default; border-right: 1px solid var(--border); transition: background 0.2s; }
+.step:last-child { border-right: none; }
+.step.active { background: var(--teal); color: #fff; }
+.step.done { background: var(--green-l); color: var(--green); cursor: pointer; }
+
+/* ── Cards ── */
+.card { background: var(--card); border-radius: var(--r); border: 1px solid var(--border); padding: 22px; margin-bottom: 16px; box-shadow: var(--sh); }
+.card-title { font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.card-sub { font-size: 0.84rem; color: var(--ink2); margin-bottom: 14px; line-height: 1.5; }
+
+/* ── Upload zones ── */
+.upload-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 24px 16px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 8px; position: relative; }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--teal); background: var(--teal-l); }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.upload-icon { font-size: 1.8rem; margin-bottom: 6px; }
+.upload-label { font-size: 0.9rem; font-weight: 600; color: var(--ink2); }
+.upload-hint { font-size: 0.78rem; color: var(--ink3); margin-top: 3px; }
+.file-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--teal-l); color: var(--teal); border-radius: 20px; padding: 4px 12px; font-size: 0.82rem; font-weight: 500; margin: 4px 4px 0 0; }
+.file-pill button { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--teal); line-height: 1; padding: 0; }
+
+/* ── Notices ── */
+.notice { border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; margin-bottom: 12px; line-height: 1.5; }
+.notice-ok { background: var(--green-l); color: var(--green); border: 1px solid #a8dfc0; }
+.notice-warn { background: var(--amber-l); color: var(--amber); border: 1px solid #f0d090; }
+.notice-err { background: var(--red-l); color: var(--red); border: 1px solid #f0b090; }
+.notice-info { background: var(--teal-l); color: var(--teal); border: 1px solid var(--border); }
+
+/* ── Chips ── */
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; border: 2px solid var(--border); background: var(--card); color: var(--ink2); cursor: pointer; transition: all 0.15s; user-select: none; }
+.chip.selected { border-color: var(--teal); background: var(--teal); color: #fff; }
+.chip:hover { border-color: var(--teal); }
+
+/* ── Form elements ── */
+label { font-size: 0.84rem; font-weight: 600; color: var(--ink2); display: block; margin-bottom: 4px; }
+input[type=text], select, textarea {
+  width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 7px;
+  font-size: 0.9rem; font-family: inherit; color: var(--ink); background: var(--card);
+  transition: border-color 0.15s;
+}
+input[type=text]:focus, select:focus, textarea:focus { outline: none; border-color: var(--teal); }
+textarea { resize: vertical; min-height: 100px; }
+.form-row { margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Buttons ── */
+.btn { padding: 11px 22px; border-radius: 8px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; font-family: inherit; }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--teal); color: #fff; }
+.btn-primary:hover:not(:disabled) { opacity: 0.88; }
+.btn-secondary { background: var(--card); color: var(--ink2); border: 1.5px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.btn-danger { background: var(--red-l); color: var(--red); border: 1.5px solid #f0b090; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+/* ── Spinner ── */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row { display: flex; align-items: center; color: var(--ink2); font-size: 0.88rem; padding: 12px 0; }
+
+/* ── Results ── */
+.grade-badge { display: inline-block; width: 36px; height: 36px; border-radius: 50%; text-align: center; line-height: 36px; font-weight: 800; font-size: 1.1rem; flex-shrink: 0; }
+.grade-A { background: #d4edda; color: #0d6e3c; }
+.grade-B { background: #d1ecf1; color: #0c5460; }
+.grade-C { background: #fff3cd; color: #856404; }
+.grade-D { background: #ffe5b4; color: #b86b00; }
+.grade-E { background: #f8d7da; color: #721c24; }
+
+.result-card { border: 1.5px solid var(--border); border-radius: 9px; padding: 16px; margin-bottom: 12px; }
+.result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.result-code { font-weight: 700; font-size: 0.95rem; }
+.result-label { font-size: 0.82rem; color: var(--ink2); }
+.result-section { margin-top: 8px; }
+.result-section-title { font-size: 0.76rem; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.result-text { font-size: 0.86rem; color: var(--ink2); line-height: 1.55; }
+
+.override-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.override-row select { width: auto; padding: 5px 8px; font-size: 0.84rem; }
+.override-row label { margin: 0; font-size: 0.82rem; }
+
+.overall-card { background: var(--teal); color: #fff; border-radius: var(--r); padding: 20px; margin-bottom: 16px; }
+.overall-card .grade-big { font-size: 3rem; font-weight: 800; line-height: 1; }
+.overall-card .overall-label { font-size: 0.85rem; opacity: 0.8; margin-bottom: 4px; }
+.overall-header { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 12px; }
+.overall-feedback { font-size: 0.9rem; line-height: 1.6; opacity: 0.95; }
+
+/* ── Draft banner ── */
+.draft-banner { background: var(--amber-l); border: 1.5px solid #f0d090; color: var(--amber); border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; font-weight: 600; margin-bottom: 14px; text-align: center; }
+
+/* ── Rubric table (Step 1 preview) ── */
+.rubric-preview { overflow-x: auto; margin-top: 12px; }
+.rubric-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.rubric-table th, .rubric-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+.rubric-table th { background: var(--teal); color: #fff; font-weight: 600; }
+.rubric-table td:first-child { font-weight: 700; background: var(--surface); }
+.rubric-table .grade-A-cell { background: #f2fff6; }
+.rubric-table .grade-B-cell { background: #f0faff; }
+.rubric-table .grade-C-cell { background: #fffdf0; }
+.rubric-table .grade-D-cell { background: #fff8f0; }
+.rubric-table .grade-E-cell { background: #fff4f4; }
+
+/* ── Panels ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── Collapsible ── */
+details summary { cursor: pointer; font-size: 0.84rem; color: var(--teal); font-weight: 600; padding: 4px 0; }
+details summary:hover { opacity: 0.8; }
+
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .steps .step { font-size: 0.7rem; padding: 8px 2px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>MarkAssist</h1>
+      <div style="font-size:0.8rem;color:var(--ink3);margin-top:2px;">SACE Assessment Support · Trinity College</div>
+    </div>
+    <span id="modeTag" style="display:none"></span>
+  </header>
+
+  <div class="steps">
+    <div class="step active" id="s1" onclick="goStep(1)">1 · Subject Setup</div>
+    <div class="step" id="s2" onclick="goStep(2)">2 · Task Config</div>
+    <div class="step" id="s3" onclick="goStep(3)">3 · Student Work</div>
+    <div class="step" id="s4" onclick="goStep(4)">4 · Results</div>
+  </div>
+
+  <!-- ══════════════ STEP 1: Subject Setup ══════════════ -->
+  <div class="panel active" id="panel1">
+
+    <div class="card">
+      <div class="card-title">Subject Outline</div>
+      <div class="card-sub">Upload your SACE Subject Outline. MarkAssist will read the Assessment Design Criteria and Performance Standards table directly from your document.</div>
+      <div class="upload-zone" id="zone-outline" ondragover="doDragOver(event,'zone-outline')" ondragleave="doDragLeave('zone-outline')" ondrop="doDrop(event,'outline')">
+        <input type="file" id="input-outline" accept=".docx,.txt" onchange="onFileSelect(this,'outline')">
+        <div class="upload-icon">📑</div>
+        <div class="upload-label" id="label-outline">Click to upload or drag &amp; drop</div>
+        <div class="upload-hint">Subject Outline · DOCX or TXT</div>
+      </div>
+      <div id="pill-outline"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Learning and Assessment Plan <span style="font-weight:400;color:var(--ink3);font-size:0.85rem;">(optional)</span></div>
+      <div class="card-sub">Upload your school's LAP and MarkAssist will read your task structure and which criteria apply to each task.</div>
+      <div class="upload-zone" id="zone-lap" ondragover="doDragOver(event,'zone-lap')" ondragleave="doDragLeave('zone-lap')" ondrop="doDrop(event,'lap')">
+        <input type="file" id="input-lap" accept=".docx,.txt" onchange="onFileSelect(this,'lap')">
+        <div class="upload-icon">📋</div>
+        <div class="upload-label" id="label-lap">Click to upload or drag &amp; drop</div>
+        <div class="upload-hint">LAP document · DOCX or TXT</div>
+      </div>
+      <div id="pill-lap"></div>
+    </div>
+
+    <div id="status1"></div>
+
+    <div id="rubric-preview-area" style="display:none">
+      <div class="card">
+        <div class="card-title">✓ Criteria extracted from Subject Outline</div>
+        <div class="card-sub" id="rubric-subject-name"></div>
+        <div class="chip-group" id="rubric-chips"></div>
+        <details style="margin-top:14px;">
+          <summary>Preview full rubric table</summary>
+          <div class="rubric-preview" id="rubric-table-area"></div>
+        </details>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-parse" onclick="parseDocs()" disabled>Read documents &amp; extract criteria →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ STEP 2: Task Config ══════════════ -->
+  <div class="panel" id="panel2">
+
+    <div class="card">
+      <div class="card-title">Task details</div>
+      <div class="form-row">
+        <label>Task name / number</label>
+        <input type="text" id="taskName" placeholder="e.g. AT1 Task 2 — Business Model Canvas">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Marking mode</label>
+          <select id="markMode" onchange="updateModeBadge()">
+            <option value="draft">Draft — indicative grade for teacher review</option>
+            <option value="final">Final — for recorded assessment</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Student ID (optional)</label>
+          <input type="text" id="studentId" placeholder="e.g. 12345 or leave blank">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Select criteria for this task</div>
+      <div class="card-sub">Tick the assessment criteria that apply to this task. If you uploaded a LAP, they may be pre-selected. You can adjust.</div>
+
+      <div id="task-presets" style="margin-bottom:12px;"></div>
+
+      <div class="chip-group" id="criteria-chips"></div>
+      <div id="criteria-warning" class="notice notice-warn" style="display:none;margin-top:10px;">Select at least one criterion to continue.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Teacher context <span style="font-weight:400;color:var(--ink3);font-size:0.85rem;">(optional)</span></div>
+      <div class="form-row">
+        <textarea id="teacherCtx" placeholder="Any context to help the AI: task brief summary, common issues, what you are looking for in high-quality responses…" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ STEP 3: Student Work ══════════════ -->
+  <div class="panel" id="panel3">
+
+    <div class="card">
+      <div class="card-title">Upload student work</div>
+      <div class="card-sub">Upload one or more files (DOCX for written work, PPTX for presentations). You can combine both for tasks that have multiple components.</div>
+      <div class="upload-zone" id="zone-work" ondragover="doDragOver(event,'zone-work')" ondragleave="doDragLeave('zone-work')" ondrop="doDrop(event,'work')">
+        <input type="file" id="input-work" accept=".docx,.pptx,.txt" multiple onchange="onFileSelect(this,'work')">
+        <div class="upload-icon">📄</div>
+        <div class="upload-label">Click to upload or drag &amp; drop</div>
+        <div class="upload-hint">DOCX, PPTX, or TXT · Multiple files OK</div>
+      </div>
+      <div id="pill-work"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Or paste text directly</div>
+      <textarea id="workText" placeholder="Paste student work here if you don't have a file…" rows="6"></textarea>
+    </div>
+
+    <div id="status3"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" id="btn-grade" onclick="gradeWork()">Grade this work →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ STEP 4: Results ══════════════ -->
+  <div class="panel" id="panel4">
+    <div id="results-area"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="newStudent()">← Grade another student</button>
+      <button class="btn btn-secondary" onclick="goStep(2)">Change task / criteria</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+const S = {
+  outlineFile: null,
+  lapFile: null,
+  workFiles: [],
+  rubric: null,      // { subject, criteriaGroups, tasks }
+  selectedCriteria: [],   // array of criterion codes
+  overrides: {},
+};
+
+// ════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════
+function goStep(n) {
+  if (n === 2 && !S.rubric) return;
+  if (n === 3 && !S.rubric) return;
+  if (n === 4 && !S.rubric) return;
+
+  document.querySelectorAll('.panel').forEach((p,i) => {
+    p.classList.toggle('active', i+1 === n);
+  });
+  document.querySelectorAll('.step').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if (i+1 === n) s.classList.add('active');
+    else if (i+1 < n) s.classList.add('done');
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ════════════════════════════════════════════════════════
+// FILE HANDLING
+// ════════════════════════════════════════════════════════
+function doDragOver(e, zoneId) {
+  e.preventDefault();
+  document.getElementById(zoneId).classList.add('drag');
+}
+function doDragLeave(zoneId) {
+  document.getElementById(zoneId).classList.remove('drag');
+}
+function doDrop(e, target) {
+  e.preventDefault();
+  const zoneId = 'zone-' + target;
+  document.getElementById(zoneId).classList.remove('drag');
+  const files = Array.from(e.dataTransfer.files);
+  attachFiles(files, target);
+}
+function onFileSelect(input, target) {
+  attachFiles(Array.from(input.files), target);
+  input.value = '';
+}
+
+function attachFiles(files, target) {
+  if (target === 'outline') {
+    S.outlineFile = files[0];
+    renderPill('pill-outline', [S.outlineFile], 'outline');
+    document.getElementById('label-outline').textContent = S.outlineFile.name;
+  } else if (target === 'lap') {
+    S.lapFile = files[0];
+    renderPill('pill-lap', [S.lapFile], 'lap');
+    document.getElementById('label-lap').textContent = S.lapFile.name;
+  } else if (target === 'work') {
+    S.workFiles.push(...files);
+    renderPill('pill-work', S.workFiles, 'work');
+  }
+  updateParseBtn();
+}
+
+function removePillFile(target, idx) {
+  if (target === 'outline') { S.outlineFile = null; document.getElementById('label-outline').textContent = 'Click to upload or drag & drop'; renderPill('pill-outline', [], 'outline'); }
+  else if (target === 'lap') { S.lapFile = null; document.getElementById('label-lap').textContent = 'Click to upload or drag & drop'; renderPill('pill-lap', [], 'lap'); }
+  else if (target === 'work') { S.workFiles.splice(idx, 1); renderPill('pill-work', S.workFiles, 'work'); }
+  updateParseBtn();
+}
+
+function renderPill(containerId, files, target) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = files.map((f, i) =>
+    `<span class="file-pill">📄 ${f.name} <button onclick="removePillFile('${target}',${i})">×</button></span>`
+  ).join('');
+}
+
+function updateParseBtn() {
+  document.getElementById('btn-parse').disabled = !S.outlineFile;
+}
+
+function fileToB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = () => rej(new Error('File read error'));
+    r.readAsDataURL(file);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// STEP 1: PARSE DOCUMENTS
+// ════════════════════════════════════════════════════════
+async function parseDocs() {
+  const statusEl = document.getElementById('status1');
+  const previewArea = document.getElementById('rubric-preview-area');
+  previewArea.style.display = 'none';
+  document.getElementById('btn-parse').disabled = true;
+
+  statusEl.innerHTML = `<div class="loading-row"><div class="spinner"></div> Extracting text from Subject Outline…</div>`;
+
+  try {
+    // Build payload
+    const filesToSend = [{ name: S.outlineFile.name, base64: await fileToB64(S.outlineFile) }];
+    if (S.lapFile) filesToSend.push({ name: S.lapFile.name, base64: await fileToB64(S.lapFile) });
+
+    // 1. Extract text
+    const extRes = await fetch('/.netlify/functions/extract-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: filesToSend }),
+    });
+    const extData = await extRes.json();
+
+    if (!extRes.ok) throw new Error(extData.error || 'Text extraction failed');
+
+    const outlineResult = extData.results?.find(r => r.name === S.outlineFile.name);
+    if (!outlineResult || !outlineResult.text || outlineResult.text.length < 50) {
+      throw new Error(outlineResult?.error || 'Could not extract text from Subject Outline. Make sure it is a DOCX or TXT file.');
+    }
+
+    const outlineText = outlineResult.text;
+    const lapText = S.lapFile ? (extData.results?.find(r => r.name === S.lapFile.name)?.text || '') : '';
+
+    // Debug: show char count
+    statusEl.innerHTML = `<div class="loading-row"><div class="spinner"></div> Reading Assessment Design Criteria… (${outlineText.length.toLocaleString()} characters extracted)</div>`;
+
+    // 2. Parse rubric
+    const parseRes = await fetch('/.netlify/functions/parse-docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outlineText, lapText }),
+    });
+    const parseData = await parseRes.json();
+
+    if (!parseRes.ok) throw new Error(parseData.error || 'Criteria extraction failed');
+    if (parseData.parseError) throw new Error('Could not parse rubric JSON: ' + parseData.parseError + '\n\nRaw: ' + (parseData.rawRubric || '').slice(0, 300));
+
+    S.rubric = parseData;
+
+    if (!S.rubric.criteriaGroups || !S.rubric.criteriaGroups.length) {
+      if (S.rubric.parseWarning) {
+        statusEl.innerHTML = `<div class="notice notice-warn">⚠️ ${S.rubric.parseWarning}. Check that your Subject Outline contains a Performance Standards table.</div>`;
+      } else {
+        throw new Error('No criteria groups found. The Subject Outline may not contain a readable Performance Standards table.');
+      }
+      document.getElementById('btn-parse').disabled = false;
+      return;
+    }
+
+    statusEl.innerHTML = `<div class="notice notice-ok">✓ ${S.rubric.criteriaGroups.length} criterion group(s) extracted from Subject Outline.</div>`;
+
+    // Show rubric preview
+    renderRubricPreview();
+    renderCriteriaChips();
+    renderTaskPresets();
+    previewArea.style.display = 'block';
+
+    // Auto-advance after short delay
+    setTimeout(() => goStep(2), 1200);
+
+  } catch (err) {
+    statusEl.innerHTML = `<div class="notice notice-err">❌ ${err.message}</div>`;
+    document.getElementById('btn-parse').disabled = false;
+  }
+}
+
+function renderRubricPreview() {
+  const r = S.rubric;
+  document.getElementById('rubric-subject-name').textContent = r.subject || '';
+
+  // Chips
+  const chipsEl = document.getElementById('rubric-chips');
+  chipsEl.innerHTML = r.criteriaGroups.flatMap(g =>
+    g.subCriteria.map(sc => `<span class="chip selected">${sc.code}</span>`)
+  ).join('');
+
+  // Table
+  const allSub = r.criteriaGroups.flatMap(g => g.subCriteria);
+  const grades = ['A','B','C','D','E'];
+  let html = '<table class="rubric-table"><thead><tr><th>Grade</th>';
+  for (const sc of allSub) html += `<th>${sc.code}<br><span style="font-weight:400">${sc.label}</span></th>`;
+  html += '</tr></thead><tbody>';
+  for (const grade of grades) {
+    html += `<tr><td class="grade-${grade}-cell">${grade}</td>`;
+    for (const sc of allSub) {
+      html += `<td class="grade-${grade}-cell">${sc.descriptors?.[grade] || '—'}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('rubric-table-area').innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+// STEP 2: TASK CONFIG
+// ════════════════════════════════════════════════════════
+function renderCriteriaChips() {
+  const allSub = S.rubric.criteriaGroups.flatMap(g => g.subCriteria);
+  S.selectedCriteria = allSub.map(sc => sc.code); // default: all selected
+
+  const el = document.getElementById('criteria-chips');
+  el.innerHTML = allSub.map(sc =>
+    `<div class="chip selected" data-code="${sc.code}" onclick="toggleCriterion('${sc.code}')">${sc.code} — ${sc.label}</div>`
+  ).join('');
+}
+
+function toggleCriterion(code) {
+  const idx = S.selectedCriteria.indexOf(code);
+  if (idx === -1) S.selectedCriteria.push(code);
+  else S.selectedCriteria.splice(idx, 1);
+
+  document.querySelectorAll('#criteria-chips .chip').forEach(el => {
+    el.classList.toggle('selected', S.selectedCriteria.includes(el.dataset.code));
+  });
+
+  document.getElementById('criteria-warning').style.display = S.selectedCriteria.length ? 'none' : 'block';
+}
+
+function renderTaskPresets() {
+  const tasks = S.rubric.tasks || [];
+  if (!tasks.length) return;
+
+  const el = document.getElementById('task-presets');
+  el.innerHTML = '<label>Load criteria from LAP task</label><div class="chip-group" id="task-preset-chips"></div>';
+
+  const chips = document.getElementById('task-preset-chips');
+  chips.innerHTML = tasks.map(t =>
+    `<div class="chip" onclick="loadTaskPreset('${t.id}')">${t.name}</div>`
+  ).join('');
+}
+
+function loadTaskPreset(taskId) {
+  const task = (S.rubric.tasks || []).find(t => t.id === taskId);
+  if (!task) return;
+
+  document.getElementById('taskName').value = task.name;
+
+  // Select matching criteria
+  if (task.criteria && task.criteria.length) {
+    S.selectedCriteria = [];
+    document.querySelectorAll('#criteria-chips .chip').forEach(el => {
+      const matches = task.criteria.some(c => el.dataset.code === c || el.dataset.code.startsWith(c));
+      el.classList.toggle('selected', matches);
+      if (matches) S.selectedCriteria.push(el.dataset.code);
+    });
+  }
+
+  // Highlight selected preset
+  document.querySelectorAll('#task-preset-chips .chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === (S.rubric.tasks.find(t=>t.id===taskId)?.name || ''));
+  });
+}
+
+function updateModeBadge() {
+  const mode = document.getElementById('markMode').value;
+  const tag = document.getElementById('modeTag');
+  tag.style.display = 'inline';
+  tag.textContent = mode === 'draft' ? 'DRAFT MODE' : 'FINAL MODE';
+  tag.style.background = mode === 'draft' ? 'var(--amber-l)' : 'var(--green-l)';
+  tag.style.color = mode === 'draft' ? 'var(--amber)' : 'var(--green)';
+}
+
+// ════════════════════════════════════════════════════════
+// STEP 3: GRADE WORK
+// ════════════════════════════════════════════════════════
+async function gradeWork() {
+  const statusEl = document.getElementById('status3');
+
+  if (!S.selectedCriteria.length) {
+    alert('Please go back to Step 2 and select at least one criterion.');
+    return;
+  }
+
+  document.getElementById('btn-grade').disabled = true;
+  statusEl.innerHTML = `<div class="loading-row"><div class="spinner"></div> Extracting student work text…</div>`;
+
+  try {
+    let workText = document.getElementById('workText').value.trim();
+
+    // Extract from uploaded files
+    if (S.workFiles.length) {
+      const filePayloads = await Promise.all(S.workFiles.map(async f => ({
+        name: f.name,
+        base64: await fileToB64(f),
+      })));
+
+      const extRes = await fetch('/.netlify/functions/extract-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: filePayloads }),
+      });
+      const extData = await extRes.json();
+      if (!extRes.ok) throw new Error(extData.error || 'File extraction failed');
+
+      const extracted = (extData.results || []).map(r => r.text || '').join('\n\n');
+      workText = extracted + (workText ? '\n\n' + workText : '');
+    }
+
+    if (!workText || workText.length < 20) throw new Error('No student work found. Upload a file or paste text.');
+
+    statusEl.innerHTML = `<div class="loading-row"><div class="spinner"></div> Grading against ${S.selectedCriteria.length} criteria… this may take 20–30 seconds</div>`;
+
+    // Build criteria objects for grading
+    const allSub = S.rubric.criteriaGroups.flatMap(g => g.subCriteria);
+    const criteriaToGrade = allSub.filter(sc => S.selectedCriteria.includes(sc.code));
+
+    const gradeRes = await fetch('/.netlify/functions/grade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentWork: workText,
+        criteria: criteriaToGrade,
+        subject: S.rubric.subject,
+        taskName: document.getElementById('taskName').value,
+        mode: document.getElementById('markMode').value,
+        teacherContext: document.getElementById('teacherCtx').value,
+        studentId: document.getElementById('studentId').value,
+      }),
+    });
+
+    const gradeData = await gradeRes.json();
+    if (!gradeRes.ok) throw new Error(gradeData.error || 'Grading failed');
+    if (gradeData.parseError) throw new Error('Could not parse grade response: ' + gradeData.parseError);
+
+    statusEl.innerHTML = '';
+    renderResults(gradeData);
+    goStep(4);
+
+  } catch (err) {
+    statusEl.innerHTML = `<div class="notice notice-err">❌ ${err.message}</div>`;
+  }
+
+  document.getElementById('btn-grade').disabled = false;
+}
+
+// ════════════════════════════════════════════════════════
+// STEP 4: RENDER RESULTS
+// ════════════════════════════════════════════════════════
+function renderResults(data) {
+  const isDraft = data.mode === 'draft';
+  let html = '';
+
+  if (isDraft) {
+    html += `<div class="draft-banner">⚠️ DRAFT — Indicative AI grade for teacher review. Not a recorded result.</div>`;
+  }
+
+  // Overall
+  html += `<div class="overall-card">
+    <div class="overall-header">
+      <div>
+        <div class="overall-label">Overall indicative grade</div>
+        <div class="grade-big">${data.overallGrade || '—'}</div>
+      </div>
+      ${data.studentId ? `<div style="opacity:0.8;font-size:0.85rem;">Student: ${data.studentId}</div>` : ''}
+    </div>
+    <div class="overall-feedback">${data.overallFeedback || ''}</div>
+  </div>`;
+
+  // Per-criterion
+  if (data.grades && data.grades.length) {
+    html += `<div class="card"><div class="card-title" style="margin-bottom:14px;">Criterion-by-criterion breakdown</div>`;
+    for (const g of data.grades) {
+      const gradeClass = `grade-${g.grade}`;
+      html += `<div class="result-card">
+        <div class="result-header">
+          <div class="grade-badge ${gradeClass}">${g.grade || '?'}</div>
+          <div>
+            <div class="result-code">${g.code}</div>
+          </div>
+        </div>
+        <div class="result-section">
+          <div class="result-section-title">Justification</div>
+          <div class="result-text">${g.justification || ''}</div>
+        </div>
+        <div class="result-section" style="margin-top:8px;">
+          <div class="result-section-title">Student advice</div>
+          <div class="result-text">${g.improvement || ''}</div>
+        </div>
+        <div class="result-section" style="margin-top:8px;">
+          <div class="result-section-title">Moderation note</div>
+          <div class="result-text">${g.moderationNote || ''}</div>
+        </div>
+        <div class="override-row">
+          <label>Teacher override:</label>
+          <select onchange="setOverride('${g.code}', this.value)">
+            <option value="">— Accept AI grade (${g.grade}) —</option>
+            ${['A','B','C','D','E'].map(gr => `<option value="${gr}"${S.overrides[g.code]===gr?' selected':''}>${gr}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Moderation summary
+  if (data.moderationSummary) {
+    html += `<div class="card">
+      <div class="card-title">Moderation summary</div>
+      <div class="result-text" style="margin-top:6px;">${data.moderationSummary}</div>
+    </div>`;
+  }
+
+  document.getElementById('results-area').innerHTML = html;
+}
+
+function setOverride(code, grade) {
+  if (grade) S.overrides[code] = grade;
+  else delete S.overrides[code];
+}
+
+// ════════════════════════════════════════════════════════
+// NEW STUDENT
+// ════════════════════════════════════════════════════════
+function newStudent() {
+  S.workFiles = [];
+  S.overrides = {};
+  document.getElementById('pill-work').innerHTML = '';
+  document.getElementById('workText').value = '';
+  document.getElementById('teacherCtx').value = '';
+  document.getElementById('studentId').value = '';
+  document.getElementById('status3').innerHTML = '';
+  document.getElementById('results-area').innerHTML = '';
+  const wi = document.getElementById('input-work');
+  if (wi) wi.value = '';
+  goStep(3);
+}
+
+// Init
+updateModeBadge();
+</script>
+</body>
+</html>
