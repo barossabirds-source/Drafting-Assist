@@ -180,6 +180,7 @@ details summary:hover { opacity: 0.8; }
         <div class="upload-hint">Subject Outline · DOCX or TXT</div>
       </div>
       <div id="pill-outline"></div>
+      <div id="size-warn-outline"></div>
     </div>
 
     <div class="card">
@@ -192,6 +193,7 @@ details summary:hover { opacity: 0.8; }
         <div class="upload-hint">LAP document · DOCX or TXT</div>
       </div>
       <div id="pill-lap"></div>
+      <div id="size-warn-lap"></div>
     </div>
 
     <div id="status1"></div>
@@ -273,6 +275,7 @@ details summary:hover { opacity: 0.8; }
         <div class="upload-hint">DOCX, PPTX, or TXT · Multiple files OK</div>
       </div>
       <div id="pill-work"></div>
+      <div id="size-warn-work"></div>
     </div>
 
     <div class="card">
@@ -353,26 +356,46 @@ function onFileSelect(input, target) {
   input.value = '';
 }
 
+const MAX_FILE_BYTES = 4.5 * 1024 * 1024; // 4.5 MB — safe limit before base64 hits Netlify's 6 MB cap
+
+function fileSizeWarning(file) {
+  if (!file) return '';
+  const mb = file.size / (1024 * 1024);
+  if (file.size > MAX_FILE_BYTES) {
+    return `<div class="notice notice-err" style="margin-top:8px;">⚠️ <strong>${file.name}</strong> is ${mb.toFixed(1)} MB — this exceeds the 4.5 MB limit and will fail. Try saving the document as a smaller file (remove images, or copy text into a new document).</div>`;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    return `<div class="notice notice-warn" style="margin-top:8px;">📎 <strong>${file.name}</strong> is ${mb.toFixed(1)} MB — large file, may be slow to process.</div>`;
+  }
+  return '';
+}
+
 function attachFiles(files, target) {
   if (target === 'outline') {
     S.outlineFile = files[0];
     renderPill('pill-outline', [S.outlineFile], 'outline');
     document.getElementById('label-outline').textContent = S.outlineFile.name;
+    document.getElementById('size-warn-outline').innerHTML = fileSizeWarning(S.outlineFile);
   } else if (target === 'lap') {
     S.lapFile = files[0];
     renderPill('pill-lap', [S.lapFile], 'lap');
     document.getElementById('label-lap').textContent = S.lapFile.name;
+    document.getElementById('size-warn-lap').innerHTML = fileSizeWarning(S.lapFile);
   } else if (target === 'work') {
     S.workFiles.push(...files);
     renderPill('pill-work', S.workFiles, 'work');
+    const oversized = S.workFiles.filter(f => f.size > MAX_FILE_BYTES);
+    document.getElementById('size-warn-work').innerHTML = oversized.length
+      ? oversized.map(f => fileSizeWarning(f)).join('')
+      : '';
   }
   updateParseBtn();
 }
 
 function removePillFile(target, idx) {
-  if (target === 'outline') { S.outlineFile = null; document.getElementById('label-outline').textContent = 'Click to upload or drag & drop'; renderPill('pill-outline', [], 'outline'); }
-  else if (target === 'lap') { S.lapFile = null; document.getElementById('label-lap').textContent = 'Click to upload or drag & drop'; renderPill('pill-lap', [], 'lap'); }
-  else if (target === 'work') { S.workFiles.splice(idx, 1); renderPill('pill-work', S.workFiles, 'work'); }
+  if (target === 'outline') { S.outlineFile = null; document.getElementById('label-outline').textContent = 'Click to upload or drag & drop'; renderPill('pill-outline', [], 'outline'); document.getElementById('size-warn-outline').innerHTML = ''; }
+  else if (target === 'lap') { S.lapFile = null; document.getElementById('label-lap').textContent = 'Click to upload or drag & drop'; renderPill('pill-lap', [], 'lap'); document.getElementById('size-warn-lap').innerHTML = ''; }
+  else if (target === 'work') { S.workFiles.splice(idx, 1); renderPill('pill-work', S.workFiles, 'work'); document.getElementById('size-warn-work').innerHTML = ''; }
   updateParseBtn();
 }
 
@@ -384,7 +407,8 @@ function renderPill(containerId, files, target) {
 }
 
 function updateParseBtn() {
-  document.getElementById('btn-parse').disabled = !S.outlineFile;
+  const oversized = [S.outlineFile, S.lapFile].filter(Boolean).some(f => f.size > MAX_FILE_BYTES);
+  document.getElementById('btn-parse').disabled = !S.outlineFile || oversized;
 }
 
 function fileToB64(file) {
