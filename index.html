@@ -397,6 +397,26 @@ function fileToB64(file) {
 }
 
 // ════════════════════════════════════════════════════════
+// SAFE FETCH HELPER
+// Prevents "Unexpected end of JSON input" when the function
+// times out or the payload exceeds Netlify's body size limit.
+// ════════════════════════════════════════════════════════
+async function safeJson(res) {
+  const text = await res.text();
+  if (!text || !text.trim()) {
+    if (res.status === 413) throw new Error('File too large — try a smaller document (under 4 MB).');
+    if (res.status === 524 || res.status === 502 || res.status === 504)
+      throw new Error('The server took too long to respond. Try again, or use a smaller document.');
+    throw new Error(`Empty response from server (HTTP ${res.status}). The document may be too large or the function timed out.`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Server returned invalid JSON (HTTP ${res.status}). Raw: ${text.slice(0, 200)}`);
+  }
+}
+
+// ════════════════════════════════════════════════════════
 // STEP 1: PARSE DOCUMENTS
 // ════════════════════════════════════════════════════════
 async function parseDocs() {
@@ -418,7 +438,7 @@ async function parseDocs() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: filesToSend }),
     });
-    const extData = await extRes.json();
+    const extData = await safeJson(extRes);
 
     if (!extRes.ok) throw new Error(extData.error || 'Text extraction failed');
 
@@ -439,7 +459,7 @@ async function parseDocs() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ outlineText, lapText }),
     });
-    const parseData = await parseRes.json();
+    const parseData = await safeJson(parseRes);
 
     if (!parseRes.ok) throw new Error(parseData.error || 'Criteria extraction failed');
     if (parseData.parseError) throw new Error('Could not parse rubric JSON: ' + parseData.parseError + '\n\nRaw: ' + (parseData.rawRubric || '').slice(0, 300));
@@ -598,7 +618,7 @@ async function gradeWork() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: filePayloads }),
       });
-      const extData = await extRes.json();
+      const extData = await safeJson(extRes);
       if (!extRes.ok) throw new Error(extData.error || 'File extraction failed');
 
       const extracted = (extData.results || []).map(r => r.text || '').join('\n\n');
@@ -627,7 +647,7 @@ async function gradeWork() {
       }),
     });
 
-    const gradeData = await gradeRes.json();
+    const gradeData = await safeJson(gradeRes);
     if (!gradeRes.ok) throw new Error(gradeData.error || 'Grading failed');
     if (gradeData.parseError) throw new Error('Could not parse grade response: ' + gradeData.parseError);
 
