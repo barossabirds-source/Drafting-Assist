@@ -13,7 +13,17 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
 
   try {
-    const { files } = JSON.parse(event.body);
+    const body = event.body || '';
+    // Netlify encodes large bodies as base64 when isBase64Encoded is true
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(body, 'base64').toString('utf8')
+      : body;
+
+    if (!rawBody || !rawBody.trim()) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Empty request body. The file may be too large (max ~4 MB).' }) };
+    }
+
+    const { files } = JSON.parse(rawBody);
     if (!files || !Array.isArray(files)) throw new Error("No files array in request body");
 
     const results = [];
